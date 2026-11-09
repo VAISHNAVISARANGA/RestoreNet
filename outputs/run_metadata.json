@@ -1,0 +1,42 @@
+{
+  "colorizer": "FALLBACK fixed Lab tint (handcrafted, NOT deep learning)",
+  "colorizer_is_deep": false,
+  "lpips_computed": false,
+  "images": [
+    "astronaut",
+    "chelsea",
+    "coffee",
+    "rocket"
+  ],
+  "config": {
+    "classical": {
+      "median_ksize": 3,
+      "gaussian_sigma": 0.0,
+      "wiener_blur_sigma": 1.5,
+      "wiener_K": null,
+      "order": "denoise_first"
+    },
+    "artifact": {
+      "prefilter_sigma": 0.8,
+      "kernel_size": 5,
+      "abs_thresh": 25.0,
+      "mad_k": 6.0,
+      "min_length": 15,
+      "min_elongation": 3.0,
+      "dust_max_area": 30,
+      "dust_strength": 60.0,
+      "dilate": 1,
+      "inpaint_radius": 3,
+      "method": "telea"
+    }
+  },
+  "versions": {
+    "python": "3.12.3",
+    "platform": "Linux-6.18.44-fc-v310-x86_64-with-glibc2.39",
+    "opencv": "5.0.0",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "scikit-image": "0.26.0",
+    "pandas": "3.0.6"
+  }
+}

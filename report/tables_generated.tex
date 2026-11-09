@@ -1,0 +1,67 @@
+\begin{table}[t]
+\centering\small
+\caption{Grayscale restoration metrics vs.\ clean ground truth (mean $\pm$ std over images).}\label{tab:gray}
+\resizebox{\linewidth}{!}{\begin{tabular}{lrr}
+\toprule
+Config & psnr\_gray & ssim\_gray \\
+\midrule
+degraded\_input & 19.029 $\pm$ 1.797 & 0.463 $\pm$ 0.058 \\
+classical\_only & 19.240 $\pm$ 2.283 & 0.585 $\pm$ 0.038 \\
+A\_baseline & 19.139 $\pm$ 1.825 & 0.463 $\pm$ 0.057 \\
+B\_hybrid & 19.424 $\pm$ 2.261 & 0.585 $\pm$ 0.040 \\
+C\_full & 22.933 $\pm$ 3.430 & 0.623 $\pm$ 0.061 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{Colour metrics vs.\ the original colour image and processing time (mean $\pm$ std).}\label{tab:color}
+\resizebox{\linewidth}{!}{\begin{tabular}{lrrrr}
+\toprule
+Config & psnr\_rgb & ssim\_rgb & ab\_rmse & time\_s \\
+\midrule
+A\_baseline & 16.539 $\pm$ 2.003 & 0.424 $\pm$ 0.080 & 25.989 $\pm$ 9.198 & 0.003 $\pm$ 0.001 \\
+B\_hybrid & 16.561 $\pm$ 2.051 & 0.525 $\pm$ 0.065 & 25.899 $\pm$ 9.176 & 0.012 $\pm$ 0.004 \\
+C\_full & 17.897 $\pm$ 2.598 & 0.559 $\pm$ 0.075 & 25.734 $\pm$ 9.148 & 0.045 $\pm$ 0.016 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{Ablation of the classical stage (no artifact removal).}\label{tab:abl1}
+\resizebox{\linewidth}{!}{\begin{tabular}{lrrrr}
+\toprule
+Variant & classical\_psnr\_gray & classical\_ssim\_gray & colorized\_psnr\_rgb & colorized\_ab\_rmse \\
+\midrule
+none & 19.029 $\pm$ 1.797 & 0.463 $\pm$ 0.058 & 16.539 $\pm$ 2.003 & 25.989 $\pm$ 9.198 \\
+median3 & 20.308 $\pm$ 2.411 & 0.636 $\pm$ 0.013 & 17.143 $\pm$ 2.370 & 25.967 $\pm$ 9.215 \\
+gaussian1.0 & 20.925 $\pm$ 2.409 & 0.648 $\pm$ 0.032 & 17.399 $\pm$ 2.474 & 25.959 $\pm$ 9.246 \\
+wiener\_autoK & 18.152 $\pm$ 1.985 & 0.520 $\pm$ 0.055 & 16.039 $\pm$ 1.957 & 25.942 $\pm$ 9.180 \\
+median3+wiener\_autoK & 19.240 $\pm$ 2.283 & 0.585 $\pm$ 0.038 & 16.561 $\pm$ 2.051 & 25.899 $\pm$ 9.176 \\
+wiener\_autoK+median3 & 18.974 $\pm$ 2.143 & 0.588 $\pm$ 0.033 & 16.435 $\pm$ 2.006 & 25.903 $\pm$ 9.185 \\
+median3+wiener\_K0.01 & 17.808 $\pm$ 1.382 & 0.453 $\pm$ 0.070 & 15.936 $\pm$ 1.588 & 26.028 $\pm$ 9.081 \\
+median3+wiener\_K0.05 & 19.228 $\pm$ 1.983 & 0.587 $\pm$ 0.035 & 16.588 $\pm$ 2.029 & 25.917 $\pm$ 9.155 \\
+median3+wiener\_wrongPSF2.5 & 18.758 $\pm$ 2.756 & 0.580 $\pm$ 0.058 & 16.290 $\pm$ 2.235 & 25.937 $\pm$ 9.190 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{Ablation of artifact removal on top of configuration B (oracle = synthetic ground-truth mask).}\label{tab:abl2}
+\resizebox{\linewidth}{!}{\begin{tabular}{lrrrrr}
+\toprule
+Variant & psnr\_rgb & ssim\_rgb & mask\_precision & mask\_recall & mask\_f1 \\
+\midrule
+none (=B) & 16.561 $\pm$ 2.051 & 0.525 $\pm$ 0.065 & -- & 0.000 $\pm$ 0.000 & -- \\
+auto\_telea & 17.897 $\pm$ 2.598 & 0.559 $\pm$ 0.075 & 0.623 $\pm$ 0.023 & 0.667 $\pm$ 0.083 & 0.641 $\pm$ 0.030 \\
+oracle\_telea & 18.514 $\pm$ 2.555 & 0.584 $\pm$ 0.086 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 \\
+auto\_ns & 17.873 $\pm$ 2.596 & 0.558 $\pm$ 0.076 & 0.623 $\pm$ 0.023 & 0.667 $\pm$ 0.083 & 0.641 $\pm$ 0.030 \\
+oracle\_ns & 18.489 $\pm$ 2.556 & 0.582 $\pm$ 0.086 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 \\
+auto\_telea\_BEFORE\_classical & 18.178 $\pm$ 2.802 & 0.611 $\pm$ 0.082 & 0.753 $\pm$ 0.023 & 0.719 $\pm$ 0.174 & 0.729 $\pm$ 0.100 \\
+oracle\_telea\_BEFORE\_classical & 18.682 $\pm$ 2.404 & 0.634 $\pm$ 0.077 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 \\
+\bottomrule
+\end{tabular}}
+\end{table}

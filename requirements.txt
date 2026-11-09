@@ -1,0 +1,16 @@
+# Tested in the development sandbox: Python 3.12, numpy 2.5, scipy 1.18, scikit-image 0.26, pandas 3.0, matplotlib 3.11,
+# opencv 5.0 (stages 1, 3 and the fallback only - see note below). Ranges below are the intended compatible versions.
+numpy>=1.26
+scipy>=1.11
+scikit-image>=0.22
+pandas>=2.1
+matplotlib>=3.8
+requests>=2.31
+
+# IMPORTANT: the pretrained Caffe colorizer needs cv2.dnn.readNetFromCaffe, which exists in OpenCV 4.x but was
+# MISSING from the OpenCV 5.0 wheel in our sandbox. Keep this pin so teammates get a working Caffe importer.
+opencv-python>=4.8,<5
+
+# Optional (LPIPS metric, `python main.py run --lpips`); downloads AlexNet weights on first use:
+# torch
+# lpips

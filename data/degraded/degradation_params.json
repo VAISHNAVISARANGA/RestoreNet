@@ -1,0 +1,12 @@
+{
+  "max_side": 256,
+  "blur_sigma": 1.5,
+  "noise_sigma": 10.0,
+  "seed": 42,
+  "images": [
+    "astronaut",
+    "chelsea",
+    "coffee",
+    "rocket"
+  ]
+}

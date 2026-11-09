@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+models/*.caffemodel
+models/*.part
+report/*.aux
+report/*.log
+report/*.out
+report/*.bbl
+report/*.blg
+report/*.fls
+report/*.fdb_latexmk
