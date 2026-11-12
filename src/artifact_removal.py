@@ -61,18 +61,24 @@ def detect_artifacts(img: np.ndarray, cfg: ArtifactConfig | None = None) -> np.n
                        cv2.morphologyEx(smooth, cv2.MORPH_BLACKHAT, se)).astype(np.float32)
     mad = float(np.median(np.abs(resid - np.median(resid))))
     thresh = max(cfg.abs_thresh, cfg.mad_k * 1.4826 * mad)
-    binary = (resid > thresh).astype(np.uint8)
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    # Hysteresis: retain faint pixels connected to a confident detection, but
+    # reject weak isolated noise.  Components are defined on the low threshold.
+    low = (resid > 0.6 * thresh).astype(np.uint8)
+    high = resid > thresh
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(low, connectivity=8)
     mask = np.zeros_like(gray)
     for i in range(1, n):
+        component = labels == i
+        if not np.any(high & component):
+            continue
         area = int(stats[i, cv2.CC_STAT_AREA])
-        ys, xs = np.nonzero(labels == i)
+        ys, xs = np.nonzero(component)
         (_, _), (rw, rh), _ = cv2.minAreaRect(np.column_stack([xs, ys]).astype(np.float32))
         long_s, short_s = max(rw, rh), max(min(rw, rh), 1.0)
         is_scratch = long_s >= cfg.min_length and long_s / short_s >= cfg.min_elongation
         is_dust = area <= cfg.dust_max_area and float(resid[ys, xs].max()) >= cfg.dust_strength
         if is_scratch or is_dust:
-            mask[labels == i] = 255
+            mask[component] = 255
     if cfg.dilate > 0:
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=cfg.dilate)
     return mask

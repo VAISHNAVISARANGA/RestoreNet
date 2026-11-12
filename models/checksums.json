@@ -1,0 +1,5 @@
+{
+  "colorization_deploy_v2.prototxt": "d16418cef8df4ccd703a55ae0ef3960861d5010418f77c90d0a47689998a7169",
+  "pts_in_hull.npy": "b5dec01315c34f43f1c8c089e84c45ae35d1838d8e77ed0e7ca930f79ffa450e",
+  "colorization_release_v2.caffemodel": "f5af1e602646328c792e1094f9876fe9cd4c09ac46fa886e5708a1abc89137b1"
+}

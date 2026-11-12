@@ -19,25 +19,25 @@ import platform
 import sys
 import time
 from dataclasses import dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pandas as pd
 import scipy
-import skimage
 
 try:
     from src import evaluation as ev
     from src import visualization as viz
-    from src.artifact_removal import ArtifactConfig, load_manual_mask, remove_artifacts
+    from src.artifact_removal import ArtifactConfig, detect_artifacts, load_manual_mask, remove_artifacts
     from src.classical_restoration import ClassicalConfig, restore_classical
     from src.colorization import Colorizer
     from src.data_utils import MASK_SUBDIR, list_images, read_image, to_gray, write_image
 except ImportError:  # pragma: no cover  (python src/pipeline.py)
     import evaluation as ev
     import visualization as viz
-    from artifact_removal import ArtifactConfig, load_manual_mask, remove_artifacts
+    from artifact_removal import ArtifactConfig, detect_artifacts, load_manual_mask, remove_artifacts
     from classical_restoration import ClassicalConfig, restore_classical
     from colorization import Colorizer
     from data_utils import MASK_SUBDIR, list_images, read_image, to_gray, write_image
@@ -62,8 +62,11 @@ class RunResult:
 
 def run_configs(degraded: np.ndarray, colorizer: Colorizer, cfg: PipelineConfig,
                 manual_mask: np.ndarray | None = None) -> RunResult:
-    """Run configurations A, B and C on one (grayscale) degraded image."""
+    """Run configurations A/B/C plus the artifact-first comparison D."""
     gray = to_gray(degraded)
+    # Detection is deliberately done before the classical stage: denoising and
+    # deblurring can spread or weaken a scratch.  A supplied manual mask wins.
+    mask_source = manual_mask if manual_mask is not None else detect_artifacts(gray, cfg.artifact)
     t0 = time.perf_counter()
     cls = restore_classical(gray, cfg.classical)
     t_cls = time.perf_counter() - t0
@@ -74,12 +77,18 @@ def run_configs(degraded: np.ndarray, colorizer: Colorizer, cfg: PipelineConfig,
     B = colorizer.colorize(cls.final)
     t_B = time.perf_counter() - t0
     t0 = time.perf_counter()
-    C, mask = remove_artifacts(B, manual_mask, cfg.artifact)
+    C, mask = remove_artifacts(B, mask_source, cfg.artifact)
     t_art = time.perf_counter() - t0
+    t0 = time.perf_counter()
+    pre, _ = remove_artifacts(gray, None, cfg.artifact)
+    D = colorizer.colorize(restore_classical(pre, cfg.classical).final)
+    t_D = time.perf_counter() - t0
     return RunResult(
-        images={"degraded": gray, "classical": cls.final, "A_baseline": A, "B_hybrid": B, "C_full": C},
+        images={"degraded": gray, "classical": cls.final, "A_baseline": A, "B_hybrid": B, "C_full": C,
+            "D_artifact_first": D},
         mask=mask,
-        times={"classical_only": t_cls, "A_baseline": t_A, "B_hybrid": t_cls + t_B, "C_full": t_cls + t_B + t_art},
+        times={"classical_only": t_cls, "A_baseline": t_A, "B_hybrid": t_cls + t_B,
+               "C_full": t_cls + t_B + t_art, "D_artifact_first": t_D},
         info=cls.info,
     )
 
@@ -127,6 +136,7 @@ def process_dataset(
         write_image(out_dir / "colorized" / f"{stem}_B.png", im["B_hybrid"])
         write_image(out_dir / "masks" / f"{stem}_mask.png", res.mask)
         write_image(out_dir / "final" / f"{stem}_C.png", im["C_full"])
+        write_image(out_dir / "final" / f"{stem}_D.png", im["D_artifact_first"])
         # ---- metrics + figure (need ground truth)
         oracle = None
         op = Path(degraded_dir) / MASK_SUBDIR / f"{stem}.png"
@@ -134,14 +144,14 @@ def process_dataset(
             oracle = read_image(op, grayscale=True)
         if gt is None:
             LOG.warning("%s: no ground truth found; saved outputs but skipped metrics", stem)
-            for k in ("classical_only", "A_baseline", "B_hybrid", "C_full"):
+            for k in ("classical_only", "A_baseline", "B_hybrid", "C_full", "D_artifact_first"):
                 rows.append(_row(stem, k, colorizer, {}, res.times[k]))
             continue
         gt_gray = to_gray(gt)
         rows.append(_row(stem, "degraded_input", colorizer, ev.gray_metrics(im["degraded"], gt_gray)))
         rows.append(_row(stem, "classical_only", colorizer, ev.gray_metrics(im["classical"], gt_gray), res.times["classical_only"]))
         titles = {}
-        for k in ("A_baseline", "B_hybrid", "C_full"):
+        for k in ("A_baseline", "B_hybrid", "C_full", "D_artifact_first"):
             m = ev.color_metrics(im[k], gt, lp)
             if k == "C_full" and oracle is not None:
                 m["mask_precision"], m["mask_recall"], m["mask_f1"] = ev.mask_prf(res.mask, oracle)
@@ -153,7 +163,8 @@ def process_dataset(
              (f"Degraded input\ngray PSNR {gd['psnr_gray']:.2f} dB | SSIM {gd['ssim_gray']:.3f}", im["degraded"]),
              (f"Classical restoration\ngray PSNR {gc['psnr_gray']:.2f} dB | SSIM {gc['ssim_gray']:.3f}", im["classical"]),
              (titles["A_baseline"], im["A_baseline"]), (titles["B_hybrid"], im["B_hybrid"]),
-             (titles["C_full"] + "\n(final RestoreNet)", im["C_full"])],
+            (titles["C_full"] + "\n(final RestoreNet)", im["C_full"]),
+             (titles["D_artifact_first"] + "\n(extra comparison)", im["D_artifact_first"])],
             out_dir / "figures" / f"{stem}_comparison.png",
             f"{stem}  |  colorizer: {colorizer.name}",
         )
@@ -177,6 +188,8 @@ CLASSICAL_VARIANTS: dict[str, ClassicalConfig] = {
     "median3+wiener_K0.01": ClassicalConfig(3, 0.0, 1.5, 0.01),
     "median3+wiener_K0.05": ClassicalConfig(3, 0.0, 1.5, 0.05),
     "median3+wiener_wrongPSF2.5": ClassicalConfig(3, 0.0, 2.5),
+    "nlm10": ClassicalConfig(0, 0.0, 0.0, nlm_h=10),
+    "nlm10+wiener_K0.05": ClassicalConfig(0, 0.0, 1.5, 0.05, nlm_h=10),
 }
 
 
@@ -236,7 +249,7 @@ def write_metadata(out_dir: Path, colorizer: Colorizer, cfg: PipelineConfig, ima
         "colorizer": colorizer.name, "colorizer_is_deep": colorizer.is_deep, "lpips_computed": lpips_used,
         "images": images, "config": dataclasses.asdict(cfg),
         "versions": {"python": sys.version.split()[0], "platform": platform.platform(), "opencv": cv2.__version__,
-                     "numpy": np.__version__, "scipy": scipy.__version__, "scikit-image": skimage.__version__,
+                     "numpy": np.__version__, "scipy": scipy.__version__, "scikit-image": version("scikit-image"),
                      "pandas": pd.__version__},
     }
     (Path(out_dir) / "run_metadata.json").write_text(json.dumps(meta, indent=2))

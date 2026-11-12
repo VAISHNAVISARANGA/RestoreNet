@@ -51,13 +51,14 @@ class ClassicalConfig:
     gaussian_sigma: float = 0.0    # std-dev (pixels) of Gaussian denoiser, 0 disables
     wiener_blur_sigma: float = 1.5  # assumed Gaussian PSF sigma for deconvolution, 0 disables
     wiener_K: float | None = None   # None => estimate sigma_n^2/var(signal) from the image
-    order: str = "denoise_first"    # "denoise_first" or "deblur_first"
+    order: str = "denoise_first"  # "denoise_first" or "deblur_first"
+    nlm_h: float = 0.0             # non-local-means strength; 0 disables it
 
     def validate(self) -> None:
         if self.median_ksize not in (0,) and (self.median_ksize < 3 or self.median_ksize % 2 == 0):
             raise ValueError("median_ksize must be 0 or an odd integer >= 3")
-        if self.gaussian_sigma < 0 or self.wiener_blur_sigma < 0:
-            raise ValueError("sigmas must be non-negative")
+        if self.gaussian_sigma < 0 or self.wiener_blur_sigma < 0 or self.nlm_h < 0:
+            raise ValueError("denoising strengths and sigmas must be non-negative")
         if self.wiener_K is not None and self.wiener_K <= 0:
             raise ValueError("wiener_K must be positive")
         if self.order not in ("denoise_first", "deblur_first"):
@@ -80,6 +81,8 @@ def denoise_gaussian(gray: np.ndarray, sigma: float) -> np.ndarray:
     k = 2 * int(np.ceil(3 * sigma)) + 1
     return cv2.GaussianBlur(gray, (k, k), sigma, borderType=cv2.BORDER_REFLECT_101)
 
+def denoise_nlm(gray: np.ndarray, h: float = 10) -> np.ndarray:
+    return cv2.fastNlMeansDenoising(gray, None, h=h, templateWindowSize=7, searchWindowSize=21)
 
 def estimate_noise_sigma(gray: np.ndarray) -> float:
     """Noise std-dev estimate using Immerkaer's (1996) Laplacian-difference operator with a
@@ -145,6 +148,9 @@ def restore_classical(gray: np.ndarray, cfg: ClassicalConfig | None = None) -> C
         if cfg.gaussian_sigma > 0:
             x = denoise_gaussian(x, cfg.gaussian_sigma)
             res.stages["gaussian"] = x
+        if cfg.nlm_h > 0:
+            x = denoise_nlm(x, cfg.nlm_h)
+            res.stages["nlm"] = x
         return x
 
     def deblur(x: np.ndarray) -> np.ndarray:
@@ -160,13 +166,16 @@ def restore_classical(gray: np.ndarray, cfg: ClassicalConfig | None = None) -> C
 
 def selftest() -> None:
     """Wiener must undo a pure Gaussian blur (no noise) and the noise estimator must be roughly right."""
-    from skimage import data
-
     try:
         from src.evaluation import psnr
     except ImportError:  # pragma: no cover
         from evaluation import psnr
-    gt = data.camera()
+    # Keep the sanity test independent of the optional scikit-image package.
+    gt = np.zeros((512, 512), dtype=np.uint8)
+    cv2.rectangle(gt, (48, 48), (240, 260), 210, thickness=-1)
+    cv2.circle(gt, (350, 160), 90, 90, thickness=-1)
+    cv2.line(gt, (40, 440), (470, 300), 255, thickness=9)
+    gt[300:460, 280:460] = np.indices((160, 180)).sum(axis=0) % 2 * 180 + 40
     blurred = cv2.GaussianBlur(gt, (11, 11), 1.5)
     restored = wiener_deconvolve(blurred, gaussian_psf(1.5), 1e-3)
     gain = psnr(restored, gt) - psnr(blurred, gt)

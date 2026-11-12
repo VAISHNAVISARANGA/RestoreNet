@@ -20,7 +20,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
-from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 LOG = logging.getLogger("restorenet.eval")
 
@@ -32,12 +31,33 @@ def _check(a: np.ndarray, b: np.ndarray) -> None:
 
 def psnr(a: np.ndarray, b: np.ndarray) -> float:
     _check(a, b)
-    return float(peak_signal_noise_ratio(b, a, data_range=255))
+    mse = float(np.mean((a.astype(np.float64) - b.astype(np.float64)) ** 2))
+    return float("inf") if mse == 0 else float(10.0 * math.log10((255.0 ** 2) / mse))
 
 
 def ssim(a: np.ndarray, b: np.ndarray) -> float:
     _check(a, b)
-    return float(structural_similarity(b, a, data_range=255, channel_axis=2 if a.ndim == 3 else None))
+    if a.ndim not in (2, 3):
+        raise ValueError(f"expected a grayscale or colour image, got {a.ndim} dimensions")
+    if min(a.shape[:2]) < 7:
+        raise ValueError("images must be at least 7x7 for SSIM")
+
+    # Match skimage's default 7x7 uniform-window SSIM without requiring skimage.
+    channels_a = np.moveaxis(a, 2, 0) if a.ndim == 3 else a[None, ...]
+    channels_b = np.moveaxis(b, 2, 0) if b.ndim == 3 else b[None, ...]
+    scores = []
+    for channel_a, channel_b in zip(channels_a, channels_b):
+        x, y = channel_a.astype(np.float64), channel_b.astype(np.float64)
+        mean_x = cv2.boxFilter(x, -1, (7, 7), normalize=True, borderType=cv2.BORDER_REFLECT)
+        mean_y = cv2.boxFilter(y, -1, (7, 7), normalize=True, borderType=cv2.BORDER_REFLECT)
+        covariance_scale = 49.0 / 48.0
+        var_x = (cv2.boxFilter(x * x, -1, (7, 7), normalize=True, borderType=cv2.BORDER_REFLECT) - mean_x**2) * covariance_scale
+        var_y = (cv2.boxFilter(y * y, -1, (7, 7), normalize=True, borderType=cv2.BORDER_REFLECT) - mean_y**2) * covariance_scale
+        cov_xy = (cv2.boxFilter(x * y, -1, (7, 7), normalize=True, borderType=cv2.BORDER_REFLECT) - mean_x * mean_y) * covariance_scale
+        c1, c2 = (0.01 * 255) ** 2, (0.03 * 255) ** 2
+        score = ((2 * mean_x * mean_y + c1) * (2 * cov_xy + c2)) / ((mean_x**2 + mean_y**2 + c1) * (var_x + var_y + c2))
+        scores.append(float(score[3:-3, 3:-3].mean()))
+    return float(np.mean(scores))
 
 
 def ab_rmse(a_bgr: np.ndarray, b_bgr: np.ndarray) -> float:

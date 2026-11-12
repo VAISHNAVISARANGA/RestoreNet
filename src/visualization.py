@@ -32,14 +32,14 @@ def comparison_figure(panels: list[tuple[str, np.ndarray]], out_path: Path, supt
     """Grid of (title, image) panels, all resized to the first panel's size."""
     h, w = panels[0][1].shape[:2]
     nrows = int(np.ceil(len(panels) / ncols))
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4.0 * ncols, 4.3 * nrows))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.0 * ncols, 4.9 * nrows))
     for ax in np.atleast_1d(axes).ravel():
         ax.axis("off")
     for ax, (title, img) in zip(np.atleast_1d(axes).ravel(), panels):
         ax.imshow(_panel(img, (w, h)))
         ax.set_title(title, fontsize=10)
     fig.suptitle(suptitle, fontsize=11)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=130)
     plt.close(fig)
@@ -56,7 +56,7 @@ def mask_figure(degraded: np.ndarray, detected: np.ndarray, oracle: np.ndarray |
 def summary_barplot(csv_path: Path, out_path: Path) -> None:
     """Mean PSNR/SSIM per configuration; error bars = std over images (only if >1 image)."""
     df = pd.read_csv(csv_path)
-    order = [c for c in ["degraded_input", "classical_only", "A_baseline", "B_hybrid", "C_full"] if c in set(df["config"])]
+    order = [c for c in ["degraded_input", "classical_only", "A_baseline", "B_hybrid", "C_full", "D_artifact_first"] if c in set(df["config"])]
     fig, axes = plt.subplots(1, 4, figsize=(16, 3.8))
     specs = [("psnr_gray", "PSNR gray (dB)"), ("ssim_gray", "SSIM gray"), ("psnr_rgb", "PSNR RGB (dB)"), ("ab_rmse", "ab-RMSE (lower=better)")]
     for ax, (col, lab) in zip(axes, specs):

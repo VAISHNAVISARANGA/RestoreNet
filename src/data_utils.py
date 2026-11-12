@@ -162,7 +162,18 @@ def export_sample_images(dest: Path) -> list[Path]:
     Check scikit-image's data documentation for the licence of each image before
     redistributing them outside your course project.
     """
-    from skimage import data  # local import: only needed for this helper
+    # Import dynamically because scikit-image is an optional dependency used only
+    # by this sample-export helper.
+    from importlib import import_module
+
+    try:
+        data = import_module("skimage.data")
+    except ModuleNotFoundError as exc:
+        if exc.name == "skimage":
+            raise ImportError(
+                "Sample export requires scikit-image; install it with 'pip install scikit-image'."
+            ) from exc
+        raise
 
     dest = Path(dest)
     written = []

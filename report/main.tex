@@ -93,8 +93,8 @@ The results here therefore use a clearly labelled \emph{handcrafted fallback}: a
 \todo{Run \texttt{python main.py download-weights} on a networked machine, re-run \texttt{python main.py all --colorizer deep}, recompile, and re-read Sections 8--9: the colour metrics and conclusions will change.}
 
 \section{Artifact Removal}
-Candidate scratches/dust are detected on the luminance channel: Gaussian pre-smoothing ($\sigma=0.8$), residual $r=\max(\text{top-hat},\text{black-hat})$ with a $5\times5$ elliptical element, an adaptive threshold
-$t=\max(25,\,6\cdot1.4826\cdot\mathrm{MAD}(r))$, and connected-component filtering (elongated long components $\Rightarrow$ scratch; small strong ones $\Rightarrow$ dust). The mask is dilated once and inpainted with Telea's method (radius 3).
+Candidate scratches/dust are detected on the degraded luminance image before the classical stage: Gaussian pre-smoothing ($\sigma=0.8$), residual $r=\max(\text{top-hat},\text{black-hat})$ with a $5\times5$ elliptical element, and an adaptive threshold
+$t=\max(25,\,6\cdot1.4826\cdot\mathrm{MAD}(r))$. Hysteresis keeps low-threshold pixels ($r>0.6t$) only when their connected component overlaps a high-threshold pixel ($r>t$), then connected-component filtering retains elongated long scratches or small strong dust. The mask is dilated once and inpainted with Telea's method (radius 3), after colorization for configuration C.
 Manually supplied masks are supported and give more reliable results (``oracle'' rows below use the synthetic ground-truth mask as a stand-in for a manual mask).
 \emph{Development note:} a first version used a $3\times3$ median pre-filter; a unit test showed it erases 1-pixel scratches, so it was replaced by the Gaussian pre-filter before the reported runs.
 The detector is a heuristic: thin real structures (hair, fine edges, text) produce false positives.
@@ -111,7 +111,7 @@ $\mathrm{SSIM}=\frac{(2\mu_x\mu_y+c_1)(2\sigma_{xy}+c_2)}{(\mu_x^2+\mu_y^2+c_1)(
 Colorizer used for all numbers: \textbf{\ColorizerName} (\ColorizerKind).
 \input{tables_generated.tex}
 Mean over images: grayscale PSNR/SSIM of the degraded input is \mDegPsnrGray{} dB / \mDegSsimGray; after the classical stage \mClsPsnrGray{} dB / \mClsSsimGray; after full colorization and artifact removal (C) \mCPsnrGray{} dB / \mCSsimGray{} (luminance of the output).
-Colour metrics (RGB PSNR / SSIM): A \mAPsnrRgb{} / \mASsimRgb, B \mBPsnrRgb{} / \mBSsimRgb, C \mCPsnrRgb{} / \mCSsimRgb. Chroma error is nearly identical for all three (A \mAAbRmse, B \mBAbRmse, C \mCAbRmse): this is expected because the fallback colorizer's chroma depends only on luminance, and it shows that
+Colour metrics (RGB PSNR / SSIM): A \mAPsnrRgb{} / \mASsimRgb, B \mBPsnrRgb{} / \mBSsimRgb, C \mCPsnrRgb{} / \mCSsimRgb, and D \mDPsnrRgb{} / \mDSsimRgb. D is an extra artifact-first comparison beyond the three specified configurations: it inpaints the degraded grayscale image, then applies classical restoration and colorization. Chroma error is nearly identical for all configurations (A \mAAbRmse, B \mBAbRmse, C \mCAbRmse, D \mDAbRmse): this is expected because the fallback colorizer's chroma depends only on luminance, and it shows that
 the colour metrics here mostly reflect luminance restoration, not colorization quality.
 \begin{figure}[t]\centering
 \includegraphics[width=\linewidth]{chelsea_comparison.png}

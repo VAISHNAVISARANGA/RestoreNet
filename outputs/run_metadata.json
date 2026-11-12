@@ -1,7 +1,7 @@
 {
-  "colorizer": "FALLBACK fixed Lab tint (handcrafted, NOT deep learning)",
-  "colorizer_is_deep": false,
-  "lpips_computed": false,
+  "colorizer": "Zhang2016-pretrained (deep, Caffe via OpenCV DNN)",
+  "colorizer_is_deep": true,
+  "lpips_computed": true,
   "images": [
     "astronaut",
     "chelsea",
@@ -14,7 +14,8 @@
       "gaussian_sigma": 0.0,
       "wiener_blur_sigma": 1.5,
       "wiener_K": null,
-      "order": "denoise_first"
+      "order": "denoise_first",
+      "nlm_h": 0.0
     },
     "artifact": {
       "prefilter_sigma": 0.8,
@@ -31,12 +32,12 @@
     }
   },
   "versions": {
-    "python": "3.12.3",
-    "platform": "Linux-6.18.44-fc-v310-x86_64-with-glibc2.39",
-    "opencv": "5.0.0",
-    "numpy": "2.5.4",
-    "scipy": "1.18.1",
-    "scikit-image": "0.26.0",
-    "pandas": "3.0.6"
+    "python": "3.10.11",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "opencv": "4.14.0",
+    "numpy": "2.2.6",
+    "scipy": "1.13.0",
+    "scikit-image": "0.25.2",
+    "pandas": "2.2.2"
   }
 }

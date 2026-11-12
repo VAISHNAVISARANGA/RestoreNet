@@ -87,7 +87,7 @@ def cmd_tables(a) -> None:
     main_df = pd.read_csv(a.out_dir / "experiment_results.csv")
     parts = [
         evaluation.to_latex_table(main_df, ["psnr_gray", "ssim_gray"], "Grayscale restoration metrics vs.\\ clean ground truth (mean $\\pm$ std over images).", "tab:gray"),
-        evaluation.to_latex_table(main_df[main_df.config.isin(["A_baseline", "B_hybrid", "C_full"])],
+        evaluation.to_latex_table(main_df[main_df.config.isin(["A_baseline", "B_hybrid", "C_full", "D_artifact_first"])],
                                   ["psnr_rgb", "ssim_rgb", "ab_rmse", "time_s"], "Colour metrics vs.\\ the original colour image and processing time (mean $\\pm$ std).", "tab:color"),
     ]
     for csv, group, cols, cap, lab in [
@@ -102,7 +102,7 @@ def cmd_tables(a) -> None:
     deep = "deep" if bool(main_df["colorizer_is_deep"].iloc[0]) else "NOT deep"
     n = main_df["image"].nunique()
     macros = [f"\\newcommand{{\\ColorizerName}}{{{name}}}", f"\\newcommand{{\\ColorizerKind}}{{{deep}}}", f"\\newcommand{{\\NImages}}{{{n}}}"]
-    cfg_tag = {"degraded_input": "Deg", "classical_only": "Cls", "A_baseline": "A", "B_hybrid": "B", "C_full": "C"}
+    cfg_tag = {"degraded_input": "Deg", "classical_only": "Cls", "A_baseline": "A", "B_hybrid": "B", "C_full": "C", "D_artifact_first": "D"}
     met_tag = {"psnr_gray": "PsnrGray", "ssim_gray": "SsimGray", "psnr_rgb": "PsnrRgb", "ssim_rgb": "SsimRgb", "ab_rmse": "AbRmse"}
     means = main_df.groupby("config").mean(numeric_only=True)
     for cfg_name, ct in cfg_tag.items():
