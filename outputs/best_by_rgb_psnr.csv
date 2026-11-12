@@ -1,0 +1,5 @@
+image,selected_config,selection_metric,psnr_rgb,ssim_rgb
+astronaut,D_artifact_first,RGB PSNR (SSIM tie-break),16.6212,0.5377
+chelsea,D_artifact_first,RGB PSNR (SSIM tie-break),20.5213,0.7016
+coffee,A_baseline,RGB PSNR (SSIM tie-break),16.4325,0.3948
+rocket,D_artifact_first,RGB PSNR (SSIM tie-break),23.067,0.6533

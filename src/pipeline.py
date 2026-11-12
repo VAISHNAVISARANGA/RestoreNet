@@ -107,13 +107,18 @@ def process_dataset(
     degraded_dir: Path, gt_dir: Path, out_dir: Path, colorizer: Colorizer, cfg: PipelineConfig,
     manual_mask_dir: Path | None = None, use_lpips: bool = False,
 ) -> pd.DataFrame:
-    """Run A/B/C over a folder, save all intermediate/final images + figures, return the results table."""
+    """Run A/B/C/D, save outputs, and export an oracle-selected best image when GT exists.
+
+    ``*_best_by_rgb_psnr.png`` is for synthetic evaluation only: its selection
+    uses the clean reference and therefore cannot be used for real photographs.
+    """
     images = list_images(degraded_dir)
     if not images:
         raise FileNotFoundError(f"No degraded images in {degraded_dir}. Run `python main.py prepare` first.")
     lp = ev.LPIPSMetric() if use_lpips else None
     _warmup(colorizer)
     rows: list[dict] = []
+    best_rows: list[dict[str, object]] = []
     for path in images:
         stem = path.stem
         degraded = read_image(path, grayscale=True)
@@ -151,12 +156,29 @@ def process_dataset(
         rows.append(_row(stem, "degraded_input", colorizer, ev.gray_metrics(im["degraded"], gt_gray)))
         rows.append(_row(stem, "classical_only", colorizer, ev.gray_metrics(im["classical"], gt_gray), res.times["classical_only"]))
         titles = {}
+        color_metrics: dict[str, dict[str, float]] = {}
         for k in ("A_baseline", "B_hybrid", "C_full", "D_artifact_first"):
             m = ev.color_metrics(im[k], gt, lp)
             if k == "C_full" and oracle is not None:
                 m["mask_precision"], m["mask_recall"], m["mask_f1"] = ev.mask_prf(res.mask, oracle)
             rows.append(_row(stem, k, colorizer, m, res.times[k]))
+            color_metrics[k] = m
             titles[k] = f"{k.replace('_', ' ')}\nRGB PSNR {m['psnr_rgb']:.2f} dB | SSIM {m['ssim_rgb']:.3f}"
+        # This is deliberately an oracle selector: only synthetic/evaluation
+        # images have the clean reference needed to calculate RGB PSNR.
+        best_config = max(
+            color_metrics,
+            key=lambda k: (color_metrics[k]["psnr_rgb"], color_metrics[k]["ssim_rgb"]),
+        )
+        write_image(out_dir / "final" / f"{stem}_best_by_rgb_psnr.png", im[best_config])
+        write_image(out_dir / "final" / f"{stem}_final.png", im[best_config])
+        best_rows.append({
+            "image": stem,
+            "selected_config": best_config,
+            "selection_metric": "RGB PSNR (SSIM tie-break)",
+            "psnr_rgb": color_metrics[best_config]["psnr_rgb"],
+            "ssim_rgb": color_metrics[best_config]["ssim_rgb"],
+        })
         gd, gc = ev.gray_metrics(im["degraded"], gt_gray), ev.gray_metrics(im["classical"], gt_gray)
         viz.comparison_figure(
             [("Original clean (ground truth)", gt),
@@ -171,6 +193,8 @@ def process_dataset(
         viz.mask_figure(im["degraded"], res.mask, oracle, out_dir / "figures" / f"{stem}_masks.png", f"{stem}: scratch/dust masks")
     df = pd.DataFrame(rows)
     df.round(4).to_csv(out_dir / "experiment_results.csv", index=False)
+    if best_rows:
+        pd.DataFrame(best_rows).round(4).to_csv(out_dir / "best_by_rgb_psnr.csv", index=False)
     viz.summary_barplot(out_dir / "experiment_results.csv", out_dir / "figures" / "summary.png")
     write_metadata(out_dir, colorizer, cfg, [p.stem for p in images], use_lpips and bool(lp and lp.available))
     LOG.info("Wrote %s", out_dir / "experiment_results.csv")
